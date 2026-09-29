@@ -1,0 +1,31 @@
+name: weekly-build
+on:
+  schedule:
+    - cron: '0 1 * * 1'   # 每周一 01:00 UTC = 北京时间周一上午 9 点
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build dashboard
+        run: python build.py
+      - name: Commit rebuilt files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html data/btc_price_used.csv
+          git diff --cached --quiet || (git commit -m "周报自动重建 $(date -u +%F)" && git push)
+      - name: Deploy to Cloudflare Pages (optional, needs secrets)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "未配置 CF 凭据, 跳过自动部署 (页面由 git 连接或手动部署刷新)"; exit 0; fi
+          npx wrangler pages deploy . --project-name=btc-weekly --branch=main --commit-dirty=true
+        continue-on-error: true

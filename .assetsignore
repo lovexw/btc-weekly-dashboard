@@ -1,0 +1,6 @@
+.git
+data/cache_*.json
+__pycache__
+.DS_Store
+*.md
+.github
